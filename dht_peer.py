@@ -38,9 +38,13 @@ ownhost = args.own_hostname
 rootport = args.root_port
 roothost = args.root_hostname
 
-#class nodeposition:
-	#Can be used to hold predecessor & successor IPs for each port.
-
+# This c;ass may be useful in handling the ring position effectively. Initialises  as root. 
+class nodeposition(self, nodenum = 0, preaddr = ownhost, preport = ownport, sucaddr = ownhost,sucport = ownport):
+	self.nodenum = nodenum
+	self.preaddr = preaddr
+	self.preport = preport
+	self.sucaddr = sucaddr
+	self.sucport = sucport
 #Initialize root node
 successor = ownhost + ":" + ownportimport argparse
 predecessor = ownhost + ":" + ownport
