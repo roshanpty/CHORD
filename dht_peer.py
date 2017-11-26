@@ -98,7 +98,6 @@ if peertype == 1:
 	reqpro = req.split('|')
 	# If the request is a join request
 	if reqpro[0] == "JOIN":
-		# 1. Update the predecessor of the current successor
 		rootjoin(reqpro, rootnode)
 	elif (reqpro[0] == 'UPDATE') and (reqpro[1] == 'PRED'):
 		rootupdate(reqpro,rootnode)
