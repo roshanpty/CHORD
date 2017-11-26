@@ -105,3 +105,7 @@ if peertype == 1:
 		printchord(rootnode)
 		conn.close()
 
+	if (reqpro[0] == 'UPDATE') && (reqpro[1] == 'PRED')
+		# Handling predecessor update request from the first node joining the network
+		rootnode.pn = reqpro[0]
+		rootnode.pp = reqpro[1]
