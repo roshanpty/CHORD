@@ -33,7 +33,28 @@ class node:
 		self.sn = shname
 		self.sp = shport
 def printchord(nn):
-	print nn.pn,":", nn.pp, "--- me--->", nn.sn, nn.sp
+	print nn.pn,":", nn.pp, "--- me--->", nn.sn,":", nn.sp
+
+def rootjoin(cursucn, cursucp, indata, nodeval):
+	# 1. Update the predecessor of the current successor
+	sock2 = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+	print 'Socket Created for updating the predecessor of current successor'
+	remote_ip = socket.gethostbyname( cursucn )
+	print 'Ip address of current successor %s is %s' %(cursucn, remote_ip)
+	#Connect to current successor of root
+	sock2.connect((remote_ip , cursucp))
+	print 'Socket Connected to %s on port %d'  %(cursucn,cursucp)
+	#Sending the UPDATE request"
+	predupdata = "UPDATE|PRED|"+ indata[1]+"|"+indata[2]
+	#Send the whole string
+	sock2.sendall(predupdata)
+	print 'Message sent successfully \n %s to %s on %d'  %(predupdata,cursucn,cursucp)
+	# 2. Update the successor of the joining node
+	sucupdate = "UPDATE|SUCC|"+cursucn+"|"+str(cursucp)
+	conn.sendall(sucupdate)
+	# 3. Update the successor of the root node 
+	nodeval.sn = indata[1]
+	nodeval.sp = indata[2]
 
 # If m = 1, the node initiated is considered as the root node. 
 if peertype == 1:
@@ -68,44 +89,23 @@ if peertype == 1:
 	# If the request is a join request
 	if reqpro[0] == "JOIN":
 		# 1. Update the predecessor of the current successor
-		try:
-			sock2 = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-		except socket.error, msg:
-    			print 'Failed to create socket. Error code: ' + str(msg[0]) + ' , Error message : ' + msg[1]
-    			sys.exit();
-
-		print '\________________________\nSocket Created for updating the predecessor of current successor\n'
-		try:
-			remote_ip = socket.gethostbyname( rootnode.sn )
-		except socket.gaierror:
-    			#could not resolve
-    			print 'Hostname could not be resolved. Exiting'
-    			sys.exit()
-		print 'Ip address of current successor %s is %s' %(rootnode.sn, remote_ip)
-		#Connect to current successor of root
-		sock2.connect((remote_ip , rootnode.sp))
-		print 'Socket Connected to %s on port %d'  %(rootnode.sn, rootnode.sp)
-		#Sending the UPDATE request"
-		predupdata = "UPDATE|PRED|"+ reqpro[1]+"|"+reqpro[2]
-		try :
-		#Set the whole string
-			sock2.sendall(predupdata)
-		except socket.error:
-    		#Send failed
-			print 'Send failed'
-			sys.exit()
-		print 'Message send successfully \n %s to %s on %d'  %(predupdata,rootnode.sn,rootnode.sp)
-		# 2. Update the successor of the joining node
-		sucupdate = "UPDATE|SUCC|"+rootnode.sn+"|"+str(rootnode.sp)
-		conn.sendall(sucupdate)
-		# 3. Update the successor of the root node 
-		rootnode.sn = reqpro[1]
-		rootnode.sp = reqpro[2]
-
+		rootjoin(rootnode.sn, rootnode.sp, reqpro, rootnode)
 		printchord(rootnode)
 		conn.close()
-
-	if (reqpro[0] == 'UPDATE') && (reqpro[1] == 'PRED')
+	if (reqpro[0] == 'UPDATE') and (reqpro[1] == 'PRED'):
 		# Handling predecessor update request from the first node joining the network
 		rootnode.pn = reqpro[0]
 		rootnode.pp = reqpro[1]
+
+elif peertype == 0:
+	#Initiate a normal node with predecessor as root and successor as empty
+	normalnode = node(roothost, rootport, '', 0)
+	print "Current state of CHORD on the node %s:%d" %(ownhost,ownport)	
+	printchord(rootnode)
+else:
+	print "Invalid peertype"
+	sys.exit()
+
+
+
+	
