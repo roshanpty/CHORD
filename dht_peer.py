@@ -1,6 +1,7 @@
 import argparse
 import socket
 import sys
+import threading
 import hashlib
 
 parser = argparse.ArgumentParser(usage='./dht_peer <-m type> <-p own_port <-h own_hostname> <-r root_port> <-R root_hostname>',
@@ -35,26 +36,35 @@ class node:
 def printchord(nn):
 	print nn.pn,":", nn.pp, "--- me--->", nn.sn,":", nn.sp
 
-def rootjoin(cursucn, cursucp, indata, nodeval):
+def rootjoin(indata, nodeval):
 	# 1. Update the predecessor of the current successor
 	sock2 = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 	print 'Socket Created for updating the predecessor of current successor'
-	remote_ip = socket.gethostbyname( cursucn )
-	print 'Ip address of current successor %s is %s' %(cursucn, remote_ip)
+	remote_ip = socket.gethostbyname( nodeval.sn )
+	print 'Ip address of current successor %s is %s' %(nodeval.sn, remote_ip)
 	#Connect to current successor of root
-	sock2.connect((remote_ip , cursucp))
-	print 'Socket Connected to %s on port %d'  %(cursucn,cursucp)
+	sock2.connect((remote_ip , nodeval.sp))
+	print 'Socket Connected to %s on port %d'  %(nodeval.sn,nodeval.sp)
 	#Sending the UPDATE request"
 	predupdata = "UPDATE|PRED|"+ indata[1]+"|"+indata[2]
 	#Send the whole string
 	sock2.sendall(predupdata)
-	print 'Message sent successfully \n %s to %s on %d'  %(predupdata,cursucn,cursucp)
+	print 'Message sent successfully \n %s to %s on %d'  %(predupdata,nodeval.sn,nodeval.sp)
 	# 2. Update the successor of the joining node
-	sucupdate = "UPDATE|SUCC|"+cursucn+"|"+str(cursucp)
+	sucupdate = "UPDATE|SUCC|"+nodeval.sn+"|"+str(nodeval.sp)
 	conn.sendall(sucupdate)
 	# 3. Update the successor of the root node 
 	nodeval.sn = indata[1]
 	nodeval.sp = indata[2]
+	printchord(nodeval)
+	conn.close()
+
+def rootupdate(indata,nodeval):
+	# Handling predecessor update request from the first node joining the network
+	nodeval.pn = indata[0]
+	nodeval.pp = indata[1]
+	printchord(rootnode)
+
 
 # If m = 1, the node initiated is considered as the root node. 
 if peertype == 1:
@@ -89,14 +99,12 @@ if peertype == 1:
 	# If the request is a join request
 	if reqpro[0] == "JOIN":
 		# 1. Update the predecessor of the current successor
-		rootjoin(rootnode.sn, rootnode.sp, reqpro, rootnode)
-		printchord(rootnode)
-		conn.close()
-	if (reqpro[0] == 'UPDATE') and (reqpro[1] == 'PRED'):
-		# Handling predecessor update request from the first node joining the network
-		rootnode.pn = reqpro[0]
-		rootnode.pp = reqpro[1]
-
+		rootjoin(reqpro, rootnode)
+	elif (reqpro[0] == 'UPDATE') and (reqpro[1] == 'PRED'):
+		rootupdate(reqpro,rootnode)
+	else:
+		print "invalid request type"
+		sys.exit()
 elif peertype == 0:
 	#Initiate a normal node with predecessor as root and successor as empty
 	normalnode = node(roothost, rootport, '', 0)
