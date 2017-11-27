@@ -59,12 +59,19 @@ def rootjoin(indata, nodeval, conn):
 	printchord(nodeval)
 	conn.close()
 
-def rootupdate(indata,nodeval,conn):
+def predup(indata,nodeval,conn):
 	# Handling predecessor update request from the first node joining the network
 	nodeval.pn = indata[2]
 	nodeval.pp = indata[3]
-	printchord(rootnode)
+	printchord(nodeval)
 	conn.close()
+
+def succup(indata,nodeval,conn):
+	nodeval.sn = indata[2]
+	nodeval.sp = indata[3]
+	printchord(nodeval)
+	conn.close()
+
 
 # If m = 1, the node initiated is considered as the root node. 
 if peertype == 1:
@@ -104,7 +111,7 @@ if peertype == 1:
 		elif reqpro[0] == "JOIN":
 			rootjoin(reqpro,rootnode,conn)
 		elif (reqpro[0] == 'UPDATE') and (reqpro[1] == 'PRED'):
-			rootupdate(reqpro,rootnode,conn)
+			predup(reqpro,rootnode,conn)
 		else:
 			print "invalid request type"
 			sys.exit()
@@ -139,15 +146,15 @@ elif peertype == 0:
 		print 'Connected with ' + addr[0] + ':' + str(addr[1])
 
 		# Handling the incoming requests received
-		req = conn.recv(1024)
-		reqpro = req.split('|')
+		nreq = conn.recv(1024)
+		nreqpro = req.split('|')
 		if not req:
 			break
 		# If the request is a join request
-		elif (reqpro[0] == 'UPDATE') and (reqpro[1] == 'SUCC'):
-			succup()
-		elif (reqpro[0] == 'UPDATE') and (reqpro[1] == 'PRED'):
-			predup()
+		elif (nreqpro[0] == 'UPDATE') and (nreqpro[1] == 'SUCC'):
+			succup(nreqpro,normalnode,conn)
+		elif (nreqpro[0] == 'UPDATE') and (nreqpro[1] == 'PRED'):
+			predup(nreqpro,normalnode,conn)
 		else:
 			print "invalid request type"
 			sys.exit()
