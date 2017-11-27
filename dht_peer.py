@@ -43,13 +43,13 @@ def rootjoin(indata, nodeval, conn):
 	remote_ip = socket.gethostbyname( nodeval.sn )
 	print 'Ip address of current successor %s is %s' %(nodeval.sn, remote_ip)
 	#Connect to current successor of root
-	sock2.connect((remote_ip , nodeval.sp))
-	print 'Socket Connected to %s on port %d'  %(nodeval.sn,nodeval.sp)
+	sock2.connect((remote_ip , int(nodeval.sp)))
+	print 'Socket Connected to %s on port %d'  %(nodeval.sn,int(nodeval.sp))
 	#Sending the UPDATE request"
 	predupdata = "UPDATE|PRED|"+ indata[1]+"|"+indata[2]
 	#Send the whole string
 	sock2.sendall(predupdata)
-	print 'Message sent successfully \n %s to %s on %d'  %(predupdata,nodeval.sn,nodeval.sp)
+	print 'Message sent successfully \n %s to %s on %d'  %(predupdata,nodeval.sn,int(nodeval.sp))
 	# 2. Update the successor of the joining node
 	sucupdate = "UPDATE|SUCC|"+nodeval.sn+"|"+str(nodeval.sp)
 	conn.sendall(sucupdate)
@@ -60,17 +60,32 @@ def rootjoin(indata, nodeval, conn):
 	conn.close()
 
 def predup(indata,nodeval,conn):
-	# Handling predecessor update request from the first node joining the network
+	# Handling predecessor update requests
 	nodeval.pn = indata[2]
 	nodeval.pp = indata[3]
 	printchord(nodeval)
 	conn.close()
 
 def succup(indata,nodeval,conn):
+	# Handling predecessor update requests
 	nodeval.sn = indata[2]
 	nodeval.sp = indata[3]
 	printchord(nodeval)
 	conn.close()
+
+def nodejoin(rh,rp,oh,op):
+	# Sending JOIN request to root node
+	sock3 = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+	print 'Socket Created for updating the predecessor of current successor'
+	rootip = socket.gethostbyname( roothost )
+	print 'Ip address of root %s is %s' %(roothost, rootip)
+	sock3.connect((rootip , rootport))
+	print 'Socket Connected to %s on port %d'  %(roothost,rootport)
+	joindata = "JOIN|"+ ownhost +"|"+ str(ownport)
+	#Send the whole string
+	sock3.sendall(joindata)
+	print 'Message sent successfully \n %s to %s on %d'  %(joindata,roothost,rootport)
+
 
 
 # If m = 1, the node initiated is considered as the root node. 
@@ -138,6 +153,9 @@ elif peertype == 0:
 		sys.exit()
 	print 'Socket bind complete'
 
+	# Sending JOIN request to root node
+	nodejoin(roothost,rootport,ownhost,ownport)
+
 	# Listening for incoming requests
 	sock.listen(10)
 	print 'Socket now listening'
@@ -147,8 +165,8 @@ elif peertype == 0:
 
 		# Handling the incoming requests received
 		nreq = conn.recv(1024)
-		nreqpro = req.split('|')
-		if not req:
+		nreqpro = nreq.split('|')
+		if not nreq:
 			break
 		# If the request is a join request
 		elif (nreqpro[0] == 'UPDATE') and (nreqpro[1] == 'SUCC'):
