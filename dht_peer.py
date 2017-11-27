@@ -1,7 +1,7 @@
 import argparse
 import socket
 import sys
-import threading
+import thread
 import hashlib
 
 parser = argparse.ArgumentParser(usage='./dht_peer <-m type> <-p own_port <-h own_hostname> <-r root_port> <-R root_hostname>',
@@ -28,13 +28,36 @@ rootport = args.root_port
 roothost = args.root_hostname
 
 class node:
-	def __init__(self,phname,phport,shname,shport):
+	def __init__(self,phname,phport,nname,nport,shname,shport):
 		self.pn = phname
 		self.pp = phport
+		self.nn = nname
+		self.np = nport
 		self.sn = shname
 		self.sp = shport
-def printchord(nn):
-	print nn.pn,":", nn.pp, "--- me--->", nn.sn,":", nn.sp
+	def listensocket(self):
+		global sock		
+		try:
+			sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+		except socket.error, msg:
+			print 'Failed to create socket. Error code: ' + str(msg[0]) + ' , Error message : ' + msg[1]
+			sys.exit();
+		try:
+			sock.bind((self.nn, self.np))
+		except socket.error , msg:
+			print 'Bind failed. Error Code : ' + str(msg[0]) + ' Message ' + msg[1]
+			sys.exit()
+		sock.listen(10)
+		
+		return sock
+	def printchord(self):
+		print "Updated node position\n_____________"
+		print "Predecessor:",self.pn,":",self.pp
+		print "This node:",self.nn,":",self.np
+		print "Successor:",self.sn,":",self.sp
+
+	
+
 
 def rootjoin(indata, nodeval, conn):
 	# 1. Update the predecessor of the current successor
@@ -56,21 +79,21 @@ def rootjoin(indata, nodeval, conn):
 	# 3. Update the successor of the root node 
 	nodeval.sn = indata[1]
 	nodeval.sp = indata[2]
-	printchord(nodeval)
+	nodeval.printchord()
 	conn.close()
 
 def predup(indata,nodeval,conn):
 	# Handling predecessor update requests
 	nodeval.pn = indata[2]
 	nodeval.pp = indata[3]
-	printchord(nodeval)
+	nodeval.printchord()
 	conn.close()
 
 def succup(indata,nodeval,conn):
 	# Handling predecessor update requests
 	nodeval.sn = indata[2]
 	nodeval.sp = indata[3]
-	printchord(nodeval)
+	nodeval.printchord()
 	conn.close()
 
 def nodejoin(rh,rp,oh,op):
@@ -81,69 +104,52 @@ def nodejoin(rh,rp,oh,op):
 	print 'Ip address of root %s is %s' %(roothost, rootip)
 	sock3.connect((rootip , rootport))
 	print 'Socket Connected to %s on port %d'  %(roothost,rootport)
-	joindata = "JOIN|"+ ownhost +"|"+ str(ownport)
+	joindata ="JOIN|"+ownhost+"|"+str(ownport)
+	print joindata
 	#Send the whole string
 	sock3.sendall(joindata)
 	print 'Message sent successfully \n %s to %s on %d'  %(joindata,roothost,rootport)
 
 
-
 # If m = 1, the node initiated is considered as the root node. 
 if peertype == 1:
 	# Initiating root node
-	rootnode = node(ownhost, ownport, ownhost, ownport)
-	printchord(rootnode)
+	rootnode = node(ownhost,ownport,ownhost,ownport,ownhost,ownport)
+	rootnode.printchord()
 	# Creating a socket for root node
-	try:
-		nsock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-	except socket.error, msg:
-		print 'Failed to create socket. Error code: ' + str(msg[0]) + ' , Error message : ' + msg[1]
-		sys.exit();
-	print "Socket created for root node!"
-
-	#Binding the socket to specified ports
-	try:
-		nsock.bind((ownhost, ownport))
-	except socket.error , msg:
-		print 'Bind failed. Error Code : ' + str(msg[0]) + ' Message ' + msg[1]
-		sys.exit()
-	print 'Socket bind complete'
-
-	# Listening for incoming requests
-	nsock.listen(10)
-	print 'Socket now listening'
+	sock_root = rootnode.listensocket()	
+	print 'Root node listening'
 
 	while 1:
-		conn, addr = nsock.accept()
+		conn, addr = sock_root.accept()
 		print 'Connected with ' + addr[0] + ':' + str(addr[1])
-
-		# Handling the incoming requests received
-		req = conn.recv(1024)
+		req = conn.recv(1024)	
 		reqpro = req.split('|')
 		if not req:
-			break
-		# If the request is a join request
+			break	
 		elif reqpro[0] == "JOIN":
 			rootjoin(reqpro,rootnode,conn)
 		elif (reqpro[0] == 'UPDATE') and (reqpro[1] == 'PRED'):
 			predup(reqpro,rootnode,conn)
 		else:
 			print "invalid request type"
-			sys.exit()
-	conn.close()
-	nsock.close()
+			print reqpro
+			sys.exit()	
+
+
+
 elif peertype == 0:
 	#Initiate a normal node with predecessor as root and successor as empty
-	normalnode = node(roothost, rootport, '', 0)
+	normalnode = node(roothost,rootport,ownhost,ownport,'',0)
 	print "Current state of CHORD on the node %s:%d" %(ownhost,ownport)	
-	printchord(normalnode)
+	normalnode.printchord()
 	# Creating a socket for normal node
 	try:
 		sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 	except socket.error, msg:
 		print 'Failed to create socket. Error code: ' + str(msg[0]) + ' , Error message : ' + msg[1]
 		sys.exit();
-	print "Socket created for root node!"
+	print "Socket created for normal node!"
 
 	#Binding the socket to specified ports
 	try:
