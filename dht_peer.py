@@ -59,7 +59,7 @@ class node:
 	
 
 
-def rootjoin(indata, nodeval, conn):
+def rootjoin(indata, nodeval):
 	# 1. Update the predecessor of the current successor
 	sock2 = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 	print 'Socket Created for updating the predecessor of current successor'
@@ -72,15 +72,16 @@ def rootjoin(indata, nodeval, conn):
 	predupdata = "UPDATE|PRED|"+ indata[1]+"|"+indata[2]
 	#Send the whole string
 	sock2.sendall(predupdata)
+	sock2.close()
 	print 'Message sent successfully \n %s to %s on %d'  %(predupdata,nodeval.sn,int(nodeval.sp))
 	# 2. Update the successor of the joining node
-	sucupdate = "UPDATE|SUCC|"+nodeval.sn+"|"+str(nodeval.sp)
-	conn.sendall(sucupdate)
+#	sucupdate = "UPDATE|SUCC|"+nodeval.sn+"|"+str(nodeval.sp)
+#	sock2.connect	
+#	conn.sendall(sucupdate)
 	# 3. Update the successor of the root node 
 	nodeval.sn = indata[1]
 	nodeval.sp = indata[2]
 	nodeval.printchord()
-	conn.close()
 
 def predup(indata,nodeval,conn):
 	# Handling predecessor update requests
@@ -100,15 +101,18 @@ def nodejoin(rh,rp,oh,op):
 	# Sending JOIN request to root node
 	sock3 = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 	print 'Socket Created for updating the predecessor of current successor'
-	rootip = socket.gethostbyname( roothost )
-	print 'Ip address of root %s is %s' %(roothost, rootip)
-	sock3.connect((rootip , rootport))
+	rootip = socket.gethostbyname( rh )
+	print 'Ip address of root %s is %s' %(rh, rootip)
+	sock3.connect((rootip , rp))
 	print 'Socket Connected to %s on port %d'  %(roothost,rootport)
 	joindata ="JOIN|"+ownhost+"|"+str(ownport)
 	print joindata
 	#Send the whole string
 	sock3.sendall(joindata)
 	print 'Message sent successfully \n %s to %s on %d'  %(joindata,roothost,rootport)
+	data = sock3.recv(1024)
+	datadelim = data.split('|')
+	return datadelim
 
 
 # If m = 1, the node initiated is considered as the root node. 
@@ -128,13 +132,18 @@ if peertype == 1:
 		if not req:
 			break	
 		elif reqpro[0] == "JOIN":
-			rootjoin(reqpro,rootnode,conn)
+			sucupdate = "UPDATE|SUCC|"+rootnode.sn+"|"+str(rootnode.sp)
+			conn.sendall(sucupdate)
+			print sucupdate
+			rootjoin(reqpro,rootnode)
+
 		elif (reqpro[0] == 'UPDATE') and (reqpro[1] == 'PRED'):
 			predup(reqpro,rootnode,conn)
 		else:
 			print "invalid request type"
 			print reqpro
-			sys.exit()	
+			sys.exit()
+		conn.close()	
 
 
 
@@ -143,32 +152,18 @@ elif peertype == 0:
 	normalnode = node(roothost,rootport,ownhost,ownport,'',0)
 	print "Current state of CHORD on the node %s:%d" %(ownhost,ownport)	
 	normalnode.printchord()
-	# Creating a socket for normal node
-	try:
-		sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-	except socket.error, msg:
-		print 'Failed to create socket. Error code: ' + str(msg[0]) + ' , Error message : ' + msg[1]
-		sys.exit();
-	print "Socket created for normal node!"
-
-	#Binding the socket to specified ports
-	try:
-		sock.bind((ownhost, ownport))
-	except socket.error , msg:
-		print 'Bind failed. Error Code : ' + str(msg[0]) + ' Message ' + msg[1]
-		sys.exit()
-	print 'Socket bind complete'
 
 	# Sending JOIN request to root node
-	nodejoin(roothost,rootport,ownhost,ownport)
-
-	# Listening for incoming requests
-	sock.listen(10)
+	joinhandle = nodejoin(roothost,rootport,ownhost,ownport)
+	normalnode.sn = joinhandle[2]
+	normalnode.sp = int(joinhandle[3])
+	# Creating a socket for normal node
+	sock_normal = normalnode.listensocket()
 	print 'Socket now listening'
-	while 1:
-		conn, addr = sock.accept()
-		print 'Connected with ' + addr[0] + ':' + str(addr[1])
 
+	while 1:
+		conn, addr = sock_normal.accept()
+		print 'Connected with ' + addr[0] + ':' + str(addr[1])
 		# Handling the incoming requests received
 		nreq = conn.recv(1024)
 		nreqpro = nreq.split('|')
@@ -176,14 +171,18 @@ elif peertype == 0:
 			break
 		# If the request is a join request
 		elif (nreqpro[0] == 'UPDATE') and (nreqpro[1] == 'SUCC'):
+			print nreqpro
 			succup(nreqpro,normalnode,conn)
 		elif (nreqpro[0] == 'UPDATE') and (nreqpro[1] == 'PRED'):
 			predup(nreqpro,normalnode,conn)
 		else:
 			print "invalid request type"
 			sys.exit()
-	conn.close()
-	nsock.close()
+
+
+
+
+	
 
 else:
 	print "Invalid peertype"
