@@ -59,12 +59,12 @@ def rootjoin(indata, nodeval, conn):
 	printchord(nodeval)
 	conn.close()
 
-def rootupdate(indata,nodeval):
+def rootupdate(indata,nodeval,conn):
 	# Handling predecessor update request from the first node joining the network
-	nodeval.pn = indata[0]
-	nodeval.pp = indata[1]
+	nodeval.pn = indata[2]
+	nodeval.pp = indata[3]
 	printchord(rootnode)
-
+	conn.close()
 
 # If m = 1, the node initiated is considered as the root node. 
 if peertype == 1:
@@ -102,9 +102,9 @@ if peertype == 1:
 			break
 		# If the request is a join request
 		elif reqpro[0] == "JOIN":
-			rootjoin(reqpro, rootnode, conn)
+			rootjoin(reqpro,rootnode,conn)
 		elif (reqpro[0] == 'UPDATE') and (reqpro[1] == 'PRED'):
-			rootupdate(reqpro,rootnode)
+			rootupdate(reqpro,rootnode,conn)
 		else:
 			print "invalid request type"
 			sys.exit()
