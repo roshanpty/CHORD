@@ -114,7 +114,46 @@ elif peertype == 0:
 	#Initiate a normal node with predecessor as root and successor as empty
 	normalnode = node(roothost, rootport, '', 0)
 	print "Current state of CHORD on the node %s:%d" %(ownhost,ownport)	
-	printchord(rootnode)
+	printchord(normalnode)
+	# Creating a socket for normal node
+	try:
+		sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+	except socket.error, msg:
+		print 'Failed to create socket. Error code: ' + str(msg[0]) + ' , Error message : ' + msg[1]
+		sys.exit();
+	print "Socket created for root node!"
+
+	#Binding the socket to specified ports
+	try:
+		sock.bind((ownhost, ownport))
+	except socket.error , msg:
+		print 'Bind failed. Error Code : ' + str(msg[0]) + ' Message ' + msg[1]
+		sys.exit()
+	print 'Socket bind complete'
+
+	# Listening for incoming requests
+	sock.listen(10)
+	print 'Socket now listening'
+	while 1:
+		conn, addr = sock.accept()
+		print 'Connected with ' + addr[0] + ':' + str(addr[1])
+
+		# Handling the incoming requests received
+		req = conn.recv(1024)
+		reqpro = req.split('|')
+		if not req:
+			break
+		# If the request is a join request
+		elif (reqpro[0] == 'UPDATE') and (reqpro[1] == 'SUCC'):
+			succup()
+		elif (reqpro[0] == 'UPDATE') and (reqpro[1] == 'PRED'):
+			predup()
+		else:
+			print "invalid request type"
+			sys.exit()
+	conn.close()
+	nsock.close()
+
 else:
 	print "Invalid peertype"
 	sys.exit()
