@@ -36,7 +36,7 @@ class node:
 def printchord(nn):
 	print nn.pn,":", nn.pp, "--- me--->", nn.sn,":", nn.sp
 
-def rootjoin(indata, nodeval):
+def rootjoin(indata, nodeval, conn):
 	# 1. Update the predecessor of the current successor
 	sock2 = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 	print 'Socket Created for updating the predecessor of current successor'
@@ -90,20 +90,26 @@ if peertype == 1:
 	# Listening for incoming requests
 	nsock.listen(10)
 	print 'Socket now listening'
-	conn, addr = nsock.accept()
-	print 'Connected with ' + addr[0] + ':' + str(addr[1])
 
-	# Handling the incoming requests received
-	req = conn.recv(1024)
-	reqpro = req.split('|')
-	# If the request is a join request
-	if reqpro[0] == "JOIN":
-		rootjoin(reqpro, rootnode)
-	elif (reqpro[0] == 'UPDATE') and (reqpro[1] == 'PRED'):
-		rootupdate(reqpro,rootnode)
-	else:
-		print "invalid request type"
-		sys.exit()
+	while 1:
+		conn, addr = nsock.accept()
+		print 'Connected with ' + addr[0] + ':' + str(addr[1])
+
+		# Handling the incoming requests received
+		req = conn.recv(1024)
+		reqpro = req.split('|')
+		if not req:
+			break
+		# If the request is a join request
+		elif reqpro[0] == "JOIN":
+			rootjoin(reqpro, rootnode, conn)
+		elif (reqpro[0] == 'UPDATE') and (reqpro[1] == 'PRED'):
+			rootupdate(reqpro,rootnode)
+		else:
+			print "invalid request type"
+			sys.exit()
+	conn.close()
+	nsock.close()
 elif peertype == 0:
 	#Initiate a normal node with predecessor as root and successor as empty
 	normalnode = node(roothost, rootport, '', 0)
