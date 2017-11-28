@@ -24,7 +24,8 @@ _________________
 *Usage:* `./dht_peer <-m type> <-p own_port <-h own_hostname> <-r root_port> <-R root_hostname>`
 
 *Arguments:*
-```  -H, --help            Gives you the help documentation and details about optional arguments
+```
+  -H, --help            Gives you the help documentation and details about optional arguments
   -m PEERTYPE, --peertype PEERTYPE
                         Specify 1 if the peer is root and 0 otherwise
   -p OWN_PORT, --own_port OWN_PORT
