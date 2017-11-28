@@ -33,8 +33,8 @@ while 1:
 		print "Entering object store operation"
 		filename = raw_input("Enter the full path file you want to store:\nExample: /home/user/filename.txt\n")
 	elif menu_opt == "i":
-		print "Performing iterative retreival of object"
-		sys.exit()
+		print "Entering iterative retreival of object"
+		keyval = raw_input("Enter the key value of the object to be retreived.")
 	elif menu_opt == "r":
 		print "Performing recursive retreival of object"
 		sys.exit()

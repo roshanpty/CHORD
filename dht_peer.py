@@ -4,29 +4,6 @@ import sys
 import thread
 import hashlib
 
-parser = argparse.ArgumentParser(usage='./dht_peer <-m type> <-p own_port <-h own_hostname> <-r root_port> <-R root_hostname>',
-                                 description='DHT Peer Application',add_help=False)
-parser._add_action(argparse._HelpAction(
-    option_strings=['-H', '--help'],
-    help='Gives you the help documentation and details about optional arguments'
-))
-parser.add_argument('-m','--peertype', type = int, help='Specify 1 if the peer is root and 0 otherwise')
-parser.add_argument('-p','--own_port', type = int, help='Specify the port for the peer')
-parser.add_argument('-h','--own_hostname',help='Specify the hostname of the peer')
-parser.add_argument('-r','--root_port', type = int, help='Specify the port of the root')
-parser.add_argument('-R','--root_hostname',help='Specify the hostname of the root')
-args = parser.parse_args()
-
-# Default is normal peer if the type is not specified.
-if args.peertype is None:
-    args.peertype = 0
-
-peertype = args.peertype
-ownport = args.own_port
-ownhost = args.own_hostname
-rootport = args.root_port
-roothost = args.root_hostname
-
 class node:
 	def __init__(self,phname,phport,nname,nport,shname,shport):
 		self.pn = phname
@@ -115,6 +92,31 @@ def nodejoin(rh,rp,oh,op):
 	return datadelim
 
 
+
+parser = argparse.ArgumentParser(usage='./dht_peer <-m type> <-p own_port <-h own_hostname> <-r root_port> <-R root_hostname>',
+                                 description='DHT Peer Application',add_help=False)
+parser._add_action(argparse._HelpAction(
+    option_strings=['-H', '--help'],
+    help='Gives you the help documentation and details about optional arguments'
+))
+parser.add_argument('-m','--peertype', type = int, help='Specify 1 if the peer is root and 0 otherwise')
+parser.add_argument('-p','--own_port', type = int, help='Specify the port for the peer')
+parser.add_argument('-h','--own_hostname',help='Specify the hostname of the peer')
+parser.add_argument('-r','--root_port', type = int, help='Specify the port of the root')
+parser.add_argument('-R','--root_hostname',help='Specify the hostname of the root')
+args = parser.parse_args()
+
+# Default is normal peer if the type is not specified.
+if args.peertype is None:
+    args.peertype = 0
+
+peertype = args.peertype
+ownport = args.own_port
+ownhost = args.own_hostname
+rootport = args.root_port
+roothost = args.root_hostname
+
+
 # If m = 1, the node initiated is considered as the root node. 
 if peertype == 1:
 	# Initiating root node
@@ -178,11 +180,6 @@ elif peertype == 0:
 		else:
 			print "invalid request type"
 			sys.exit()
-
-
-
-
-	
 
 else:
 	print "Invalid peertype"
