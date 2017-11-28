@@ -51,7 +51,7 @@ To start a peer
 *Usage:* `./dht_client <-p client_port <-h client_hostname> <-r root_port> <-R root_hostname>`
 
 *Arguments:*
-```  -H, --help            Gives you the help documentation and details about
+```  -H, --help         Gives you the help documentation and details about
                         optional arguments
   -p CLIENT_PORT, --client_port CLIENT_PORT
                         Specify the port for the peer
