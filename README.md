@@ -41,9 +41,13 @@ Arguments:
 Note: If -m is not specified the peer will run as a normal node.
 
 Example:
+
 To start the root
+
 $ ./dht_peer.py -m 1 -p 3400 -h hostname.tld
+
 To start a peer
+
 $ ./dht_peer.py -p 3402 -h normalhost.tld -r 3400 -R roothost.tld
 
 DHT Client:
