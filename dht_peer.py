@@ -33,6 +33,13 @@ class node:
 		print "This node:",self.nn,":",self.np
 		print "Successor:",self.sn,":",self.sp
 
+	def nodetostore(self,clientHostname, clientPort, senddata)
+		#Send the current node address to client.
+		sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+		remote_ip = socket.gethostbyname( clientHostname )
+		sock.connect((remote_ip , int(clientPort)))
+		sock.sendall(senddata)
+		sock.close()
 	
 
 
@@ -51,10 +58,6 @@ def rootjoin(indata, nodeval):
 	sock2.sendall(predupdata)
 	sock2.close()
 	print 'Message sent successfully \n %s to %s on %d'  %(predupdata,nodeval.sn,int(nodeval.sp))
-	# 2. Update the successor of the joining node
-#	sucupdate = "UPDATE|SUCC|"+nodeval.sn+"|"+str(nodeval.sp)
-#	sock2.connect	
-#	conn.sendall(sucupdate)
 	# 3. Update the successor of the root node 
 	nodeval.sn = indata[1]
 	nodeval.sp = indata[2]
@@ -91,6 +94,12 @@ def nodejoin(rh,rp,oh,op):
 	datadelim = data.split('|')
 	return datadelim
 
+def forwardlookup(remotehost, remoteport, senddata):
+	sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+	remote_ip = socket.gethostbyname( remotehost )
+	sock.connect((remote_ip , int(remoteport)))
+	sock.sendall(senddata)
+	sock.close()
 
 
 parser = argparse.ArgumentParser(usage='./dht_peer <-m type> <-p own_port <-h own_hostname> <-r root_port> <-R root_hostname>',
@@ -115,7 +124,8 @@ ownport = args.own_port
 ownhost = args.own_hostname
 rootport = args.root_port
 roothost = args.root_hostname
-
+cnt = 1
+keystore =()
 
 # If m = 1, the node initiated is considered as the root node. 
 if peertype == 1:
@@ -125,6 +135,7 @@ if peertype == 1:
 	# Creating a socket for root node
 	sock_root = rootnode.listensocket()	
 	print 'Root node listening'
+
 
 	while 1:
 		conn, addr = sock_root.accept()
@@ -138,9 +149,52 @@ if peertype == 1:
 			conn.sendall(sucupdate)
 			print sucupdate
 			rootjoin(reqpro,rootnode)
+			cnt += 1
+			print cnt
 
 		elif (reqpro[0] == 'UPDATE') and (reqpro[1] == 'PRED'):
 			predup(reqpro,rootnode,conn)
+		elif (reqpro[0] == 'STORE') and (reqpro[1] == 'POS'):
+			key = reqpro[2]
+			rootID = hashlib.sha1(rootnode.nn).hexdigest()
+			predID = hashlib.sha1(rootnode.pn).hexdigest()
+			if (key <= rootID) and (key > predID):
+				resptocl = "STORE|RESP|"+key+"|"+rootnode.nn+"|"+str(rootnode.np)
+				rootnode.nodetostore(reqpro[3],reqpro[4],resptocl)
+			else:
+				forwardlookup(rootnode.sn, rootnode.sp, reqpro)
+		elif (reqpro[0] == 'RETREIVE') and (reqpro[1] == 'ITER'):
+			#If the key is present on node, return the object
+			key = reqpro[2]
+			if keystore(key) |= NULL:
+				objname = keystore(key)
+				objval = file(objname, 'r')
+				resp = "ITER|YES|"rootnode.nn+"|"+str(rootnode.np)+"|"+key+"|"+objname+"|"+objval
+				objval.close()
+				forwardlookup(reqpro[3],reqpro[4],resp)
+			#If the key is not present return the successor identity
+			else:
+				resp = "ITER|NO|"+key+"|"+rootnode.sn+"|"+str(rootnode.sp)
+				forwardlookup(reqpro[3],reqpro[4],resp)
+		elif (reqpro[0] == 'RETREIVE') and (reqpro[1] == 'REC'):
+			key = reqpro[2]
+			#If the key is present on the node, return the object
+			if keystore(key) |= NULL:
+				objname = keystore(key)
+				objval = file(objname, 'r')
+				resp = "RECU|"+key+rootnode.nn+"|"+str(rootnode.np)+"|"+objname+"|"+objval
+				objval.close()
+				forwardlookup(reqpro[3],reqpro[4],resp)
+			#If the key is not, forward the request to the successor
+			else:
+				forwardlookup(rootnode.sn,rootnode.sp,resp) 
+		elif (reqpro[0] == 'STORE') and (reqpro[1] == 'OBJ'):
+			key = reqpro[2]
+			keystore(key) = reqpro[3]
+			objectname = reqpro[4]
+			objectvalue = reqpro[5]
+			objfile = open(objectname,'x')
+			objfile.write(objectvalue)
 		else:
 			print "invalid request type"
 			print reqpro
@@ -177,6 +231,47 @@ elif peertype == 0:
 			succup(nreqpro,normalnode,conn)
 		elif (nreqpro[0] == 'UPDATE') and (nreqpro[1] == 'PRED'):
 			predup(nreqpro,normalnode,conn)
+		elif (reqpro[0] == 'STORE') and (reqpro[1] == 'POS'):
+			key = reqpro[2]
+			rootID = hashlib.sha1(rootnode.nn).hexdigest()
+			predID = hashlib.sha1(rootnode.pn).hexdigest()
+			if (key <= rootID) and (key > predID):
+				resptocl = "STORE|RESP|"+key+"|"+rootnode.nn+"|"+str(rootnode.np)
+				rootnode.nodetostore(reqpro[3],reqpro[4],resptocl)
+			else:
+				forwardlookup(normalnode.sn, normalnode.sp, reqpro)
+		elif (reqpro[0] == 'RETREIVE') and (reqpro[1] == 'ITER'):
+			#If the key is present on node, return the object
+			if keystore(key) |= NULL:
+				objname = keystore(key)
+				objval = file(objname, 'r')
+				resp = "ITER|YES|"normalnode.nn+"|"+str(normalnode.np)+"|"+key+"|"+objname+"|"+objval
+				objval.close()
+				forwardlookup(reqpro[3],reqpro[4],resp)
+			#If the key is not present return the successor identity
+			else:
+				resp = "ITER|NO|"+key+"|"+normalnode.sn+"|"+str(normalnode.sp)
+				forwardlookup(reqpro[3],reqpro[4],resp)				
+		elif (reqpro[0] == 'RETREIVE') and (reqpro[1] == 'REC'):
+			key = reqpro[2]
+			#If the key is present on the node, return the object
+			if keystore(key) |= NULL:
+				objname = keystore(key)
+				objval = file(objname, 'r')
+				resp = "RECU|"+key+normalnode.nn+"|"+str(normalnode.np)+"|"+objname+"|"+objval
+				objval.close()
+				forwardlookup(reqpro[3],reqpro[4],resp)
+			#If the key is not, forward the request to the successor
+			else:
+				forwardlookup(normalnode.sn,normalnode.sp,resp) 		
+		elif (reqpro[0] == 'STORE') and (reqpro[1] == 'OBJ'):
+			key = reqpro[2]
+			keystore(key) = reqpro[3]
+			objectname = reqpro[4]
+			objectvalue = reqpro[5]
+			objfile = open(objectname,'x')
+			objfile.write(objectvalue)
+			objfile.close
 		else:
 			print "invalid request type"
 			sys.exit()
