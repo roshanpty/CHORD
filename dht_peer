@@ -129,21 +129,30 @@ if peertype == 1:
 	# Creating a socket for root node
 	sock_root = rootnode.listensocket()	
 	while 1:
+		print "count now is %d" %(cnt+1)
 		conn, addr = sock_root.accept()
 		req = conn.recv(1024)	
 		reqpro = req.split('|')
 		if not req:
-			break	
+			break
+		elif reqpro[0] == "COUNT":
+			print "Node count updated on the entire CHORD"
+			sendrequest(rootnode.pn,rootnode.pp, req)
 		elif reqpro[0] == "JOIN":
 			# If the request is from a new node to join the CHORD
 			# JOIN|HOSTNAME|PORT
 			# Respond to the new node with information of its would be successor
 			sucupdate = "UPDATE|SUCC|"+rootnode.sn+"|"+str(rootnode.sp)+"|"+str(cnt)
 			conn.sendall(sucupdate)
+			conn.close()
 			# Invoke the root join routine
 			rootjoin(reqpro,rootnode)
-			cnt += 1 #Increment number of nodes
 			rootnode.printchord()
+			cnt += 1 #Increment number of nodes
+			print "Number of nodes in the CHORD now is %d" %(cnt+1)
+			print "Updating node count info to other nodes"
+#			mes = "COUNT|"+str(cnt+1)
+#			sendrequest(rootnode.pn,rootnode.pp,mes)
 		elif (reqpro[0] == 'UPDATE') and (reqpro[1] == 'PRED'):
 			# If the request is to update the predecessor of rootnode, invoke predup routine
 			# UPDATE|PRED|HOSTNAME|PORT
@@ -152,9 +161,11 @@ if peertype == 1:
 		elif (reqpro[0] == 'STORE') and (reqpro[1] == 'POS'):
 			# If the request is from a client to find the node to store an object
 			# STORE|POS|KEY|CLIENTNAME|CLIENTPORT
+			print "Store Message"
+			print reqpro
 			key = reqpro[2]
 			k = "0x"+reqpro[2]
-			keynum = int(k,0)%x
+			keynum = int(k,0)%(cnt+1)
 			cln = reqpro[3]
 			clp = int(reqpro[4])
 			if keynum == rootnode.id:
@@ -162,16 +173,17 @@ if peertype == 1:
 				resptocl = "STORE|RESP|"+key+"|"+rootnode.nn+"|"+str(rootnode.np)
 				sendrequest(cln,clp,resptocl)
 			else:
+				fowardstore = req+"|"+str(cnt+1)
 				# If ID doesn't correspond to, forward the message to predecessor
-				sendrequest(rootnode.pn, rootnode.pp, req)
+				sendrequest(rootnode.pn, rootnode.pp, forwardstore)
 		elif (reqpro[0] == 'STORE') and (reqpro[1] == 'OBJ'):
 			# If the request from client is to store the object
 			# STORE|OBJ|KEY|OBJNAME|OBJVALUE
 			key = reqpro[2]
-			keystore[key] = reqpro[3]
-			objectname = reqpro[4]
-			objectvalue = reqpro[5]
-			objfile = open(objectname,'x')
+			objectname = reqpro[3]
+			keystore[key] = objectname
+			objectvalue = reqpro[4]
+			objfile = open(objectname,'w')
 			objfile.write(objectvalue)
 			print "Object %s stored on this node\n %s" %(objectname,objectvalue)
 		elif (reqpro[0] == 'RETREIVE') and (reqpro[1] == 'ITER'):
@@ -180,8 +192,8 @@ if peertype == 1:
 			key = reqpro[2]
 			if keystore[key]:
 				objname = keystore[key]
-				objval = file(objname, 'r')
-				resp = "ITER|YES|"+rootnode.nn+"|"+str(rootnode.np)+"|"+key+"|"+objname+"|"+objval
+				objval = open(objname, 'r')
+				resp = "ITER|YES|"+rootnode.nn+"|"+str(rootnode.np)+"|"+key+"|"+objname+"|"+str(objval)
 				objval.close()
 				sendrequest(reqpro[3],int(reqpro[4]),resp)
 				print "Object %s sent to the client" %objname
@@ -198,8 +210,8 @@ if peertype == 1:
 			#If the key is present on the node, return the object
 				objname = keystore[key]
 				print "The requested object %s is available on the node. Object name is %s" %(key,objname)
-				objval = file(objname, 'r')
-				resp = "RECU|"+key+rootnode.nn+"|"+str(rootnode.np)+"|"+objname+"|"+objval
+				objval = open(objname, 'r')
+				resp = "RECU|"+key+rootnode.nn+"|"+str(rootnode.np)+"|"+objname+"|"+str(objval)
 				objval.close()
 				sendrequest(reqpro[3],reqpro[4],resp)
 			#If the key is not present, forward the request to the predecessor
@@ -229,6 +241,11 @@ elif peertype == 0:
 		nreqpro = nreq.split('|')
 		if not nreq:
 			break
+		elif nreqpro[0] == 'COUNT':
+			cnt += 1
+			print nreqpro[1]
+			print "Number of nodes ",cnt
+			sendrequest(normalnode.pn,normalnode.pp,nreq)
 		elif (nreqpro[0] == 'UPDATE') and (nreqpro[1] == 'SUCC'):
 			# If the request is update successor request
 			# UPDATE|SUCC|HOSTNAME|PORT
@@ -241,10 +258,10 @@ elif peertype == 0:
 			normalnode.printchord()
 		elif (nreqpro[0] == 'STORE') and (nreqpro[1] == 'POS'):
 			# If the request is from a client to find the node to store an object
-			# STORE|POS|KEY|CLIENTNAME|CLIENTPORT
+			# STORE|POS|KEY|CLIENTNAME|CLIENTPORT|COUNT
 			key = nreqpro[2]
 			k = "0x"+nreqpro[2]
-			keynum = int(k,0)%x
+			keynum = int(k,0)%int(reqpro[5])
 			cln = nreqpro[3]
 			clp = int(nreqpro[4])
 			if keynum == normalnode.id:
@@ -258,10 +275,10 @@ elif peertype == 0:
 			# If the request from client is to store the object
 			# STORE|OBJ|KEY|OBJNAME|OBJVALUE
 			key = reqpro[2]
-			keystore[key] = reqpro[3]
-			objectname = reqpro[4]
-			objectvalue = reqpro[5]
-			objfile = open(objectname,'x')
+			objectname = reqpro[3]
+			keystore[key] = objectname
+			objectvalue = reqpro[4]
+			objfile = open(objectname,'w')
 			objfile.write(objectvalue)
 			print "Object %s stored on this node\n %s" %(objectname,objectvalue)
 
@@ -272,7 +289,7 @@ elif peertype == 0:
 			if keystore[key]:
 				# If the key is present on node, return the object
 				objname = keystore[key]
-				objval = file(objname, 'r')
+				objval = open(objname, 'r')
 				resp = "ITER|YES|"+normalnode.nn+"|"+str(normalnode.np)+"|"+key+"|"+objname+"|"+objval
 				objval.close()
 				sendrequest(reqpro[3],int(reqpro[4]),resp)
@@ -290,7 +307,7 @@ elif peertype == 0:
 				#If the key is present on the node, return the object
 				objname = keystore[key]
 				print "The requested object %s is available on the node. Object name is %s" %(key,objname)
-				objval = file(objname, 'r')
+				objval = open(objname, 'r')
 				resp = "RECU|"+key+normalnode.nn+"|"+str(normalnode.np)+"|"+objname+"|"+objval
 				objval.close()
 				sendrequest(reqpro[3],int(reqpro[4]),resp)

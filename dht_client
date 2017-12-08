@@ -35,26 +35,26 @@ class client:
 			reqpro = req.split('|')
 			if not req:
 				break	
-			elif (reqpro[0] == "STORE") and (reqpro[0] == "RESP"):
+			elif (reqpro[0] == "STORE") and (reqpro[1] == "RESP"):
 				# Handles response with address of node to store
 				# STORE|RESP|KEY|NODENAME|NODEPORT
-				print reqpro
 				nname = reqpro[3]
-				nport = reqpro[4]
+				nport = int(reqpro[4])
 				key = reqpro[2]
 				f1 = keystore[key]
 				f1name = os.path.basename(f1)
-				f1val = file(objname, 'r')
+				f1read = open(f1name, 'r')
+				f1val = f1read.read()
 				data2 = "STORE|OBJ|"+key+"|"+f1name+"|"+f1val
-				f1val.close()
-				sendrequest()
+				f1read.close()
+				sendrequest(nname,nport,data2)
 			elif reqpro[0] == "RECU":
 				# Display  and store the object returned after recursive query
 				# RECU|KEY|NODENAME|NODEPORT|OBJECTNAME|OBJECTVALUE
 				key = reqpro[1]
 				objectname = reqpro[4]
 				objectvalue = reqpro[5]
-				objfile = open(objectname,'x')
+				objfile = open(objectname,'w')
 				objfile.write(objectvalue)
 				objfile.close
 				print "Object retreived by recursively querying the CHORD peers\n"
@@ -65,9 +65,11 @@ class client:
 				key = reqpro[4]
 				objectname = reqpro[5]
 				objectvalue = reqpro[6]
-				objfile = open(objectname,'x')
+				objfile = open(objectname,'w')
 				objfile.write(objectvalue)
 				objfile.close
+				print "Object retreived by iteratively querying the CHORD peers\n"
+				print key,"\n",objectname,"\n",objectvalue
 			elif (reqpro[0] == "ITER") and (reqpro[1] == "NO"):
 				# Send the query to the next node
 				# ITER|NO|KEY|NEXTNODE|NEXTPORT
@@ -92,8 +94,8 @@ Enter the letter corresponding to the operation you are performing\n \
 			key = hashlib.sha1(filename).hexdigest()
 			keystore[key] = filepath
 			store_lookup = "STORE|POS|"+key+"|"+dclient.cn+"|"+str(dclient.cp)
-			print store_lookup
 			sendrequest(dclient.rn,dclient.rp,store_lookup)
+			print "Store  request sent"
 		elif menu_opt == "i":
 			print "Entering iterative retreival of object"
 			keyval = raw_input("Enter the key value of the object to be retreived.")
